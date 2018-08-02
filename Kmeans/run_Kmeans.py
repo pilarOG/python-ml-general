@@ -15,6 +15,7 @@ def preprocessing(data):
     return count_vectorizer.fit_transform(data['sample'])
 
 def find_clusters(feats):
+    print feats
     num_clusters = 2 # change this for the number of clusters to find
     km = KMeans(n_clusters=num_clusters)
     km.fit(feats)
