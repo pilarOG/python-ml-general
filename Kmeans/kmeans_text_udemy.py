@@ -15,10 +15,11 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE, LocallyLinearEmbedding as LLE
 from sklearn.feature_extraction.text import TfidfTransformer
+import codecs
 
 wordnet_lemmatizer = WordNetLemmatizer()
 
-titles = [line.rstrip() for line in open('all_book_titles.txt')]
+titles = [line.rstrip() for line in codecs.open('emol-titulos-femicidios.txt', encoding='utf-8').read().split('\n')]
 
 # copy tokenizer from sentiment example
 stopwords = set(w.rstrip() for w in open('stopwords.txt'))
@@ -63,7 +64,6 @@ for title in titles:
         print(e)
 
 
-
 # now let's create our input matrices - just indicator variables for this example - works better than proportions
 def tokens_to_vector(tokens):
     x = np.zeros(len(word_index_map))
@@ -78,6 +78,7 @@ X = np.zeros((D, N)) # terms will go along rows, documents along columns
 i = 0
 for tokens in all_tokens:
     X[:,i] = tokens_to_vector(tokens)
+    print (X[:,i])
     i += 1
 
 def d(u, v):
@@ -247,7 +248,8 @@ print("vocab size:", current_index)
 
 transformer = TfidfTransformer()
 X = transformer.fit_transform(X).toarray()
-
+print (X.shape)
 reducer = TSNE()
 Z = reducer.fit_transform(X)
+print (Z.shape)
 plot_k_means(Z[:,:2], current_index//10, index_word_map, show_plots=True)
