@@ -65,7 +65,7 @@ spanish_stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'u
 def my_tokenizer(s):
     # Replace symbols and vowels with diacritics (and other leftovers from the newspaper website)
     s = s.lower().replace('-', '').replace(')', '').replace('(', '').replace('\"', '').replace(';', '').replace(':', '').replace(u'á', 'a')
-    s = s.replace(u'é', 'e').replace(u'í', 'i').replace(u'ó', 'o').replace(u'ú', 'u').replace(u'ñ', 'n').replace('\u201d', '').replace('\u201c', '').replace('\xa0','')
+    s = s.replace(u'é', 'e').replace(u'í', 'i').replace(u'ó', 'o').replace(u'ú', 'u').replace(u'ñ', 'n').replace(u'\u201d', '').replace(u'\u201c', '').replace(u'\xa0','')
     # lemmatization does not work very well for Spanish so we will use normal tokens
     tokens = []
     tokens = [t for t in s.split(' ')] # tokenization just at blank space
@@ -152,8 +152,8 @@ def soft_k_means(X, K, index_word_map, max_iter=20, beta=1.0, show_plots=True):
       cluster2word[cluster].append(word)
 
     # print out the words grouped by cluster
-    #for cluster, wordlist in cluster2word.items():
-    #  print("cluster", cluster, "->", wordlist)
+    for cluster, wordlist in cluster2word.items():
+      print("cluster", cluster, "->", wordlist)
 
     return M, R, costs, X
 
@@ -198,7 +198,7 @@ def annotate1(X, index_word_map, eps=0.1):
     )
 
 
-# MAIN
+########## MAIN #################
 
 # Load the data and split at some naive sentence boundaries
 # I'm doing this to have more documents given that I could find just 10 news
@@ -210,7 +210,6 @@ print (len(docs))
 
 # We will test two representations of the input: word2vec embeddings and a one-hot index of the words
 # For the second one, we will take out all words with few frequence (< 3) and make them pass as stopwords
-
 frequencies = {}
 all_tokens = []
 for doc in docs:
@@ -228,91 +227,77 @@ for tokens in all_tokens:
 # It is actually interesting to analyze the words that have the least frequency
 # You could think that given the topic the word "asesino" (murderer) would be
 # many times, but, surprise, it's in our stopword list...
-print ('Low frequency + stopword list')
-print (stopwords)
+#print ('Low frequency + stopword list')
+#print (stopwords)
 
 # Features version 1: word embedding training
 model = Word2Vec(size=300, window=2, min_count=1) # size is the size of the vector token that will represent each word
 model.build_vocab(all_tokens)
 model.train(all_tokens, total_examples=model.corpus_count, epochs=model.iter)
 
-# Create the matrix of embeddings for each word
+# TODO: chequear a mano algunas distancias: hombre-mujer mujer-violencia violencia-hombre
 
+# Create the matrix of embeddings for each word
 # set the matrix dimensions and creates matrix
 index_word_map_embeddings = []
 all_words = []
 for t in all_tokens: # Now we want each token independent of their document
     for n in t: all_words.append(n)
-all_tokens = set(all_words) # Making a set might change the index compared to the other method
-N = model.vector_size # N is the vector size of the embedding
-D = len(all_tokens) # D is the number of unique tokens 
-X = np.zeros((D, N)) # terms will go along rows, documents along columns
+all_words = set(all_words) # Making a set might change the index compared to the other method
+N = len(all_words) # N is the number of unique tokens
+D = model.vector_size # D is the vector size of the embedding
+X = np.zeros((N, D)) # terms will go along rows, documents along columns
 i = 0
-for token in all_tokens:
+for token in all_words: # Index of the words to retrieve them latter
     a = model.wv[token]
     index_word_map_embeddings.append(token)
     X[i,:] = a
     i += 1
+print ('Embedding features')
+print ('Samples (unique words): '+str(N))
+print ('Feature vector: '+str(D))
 
-#print ('X shape', X.shape)
-vocabulary_size = N
-#print("vocab size:", N)
+# We will reduce the dimensionality of the embeddings with t-SNE
+# For further information read:
+# To check the function parameters: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
+reducer = TSNE(perplexity=20)
+Z = reducer.fit_transform(X)
 
-
-
-
-# Create a word-to-index map so that we can create our word-frequency vectors later
+# Features version 2:
+# Create a word-to-index map to create word-frequency vectors later
 word_index_map = {}
 current_index = 0
-index_word_map = []
+index_word_map_tfidf = []
 for tokens in all_tokens:
     for token in tokens:
         if token not in word_index_map:
             word_index_map[token] = current_index
             current_index += 1
-            index_word_map.append(token)
-
-
-
-
-#print(vars(model))
+            index_word_map_tfidf.append(token)
+# la input matrix es una matriz de N muestras 1040, donde las muestras son palabras
+# y D es un vector de tamaño 462, número de documentos, con 1 o 0 si la palabra está o no en el documento
 
 # set the matrix dimensions and creates matrix
-index_word_map = []
-all_words = []
-for t in all_tokens:
-    for n in t:
-        all_words.append(n)
-all_tokens = set(all_words)
-N = model.vector_size
-#print (N)
-D = len(all_tokens)
-#print (D)
+N = len(all_tokens)
+D = len(word_index_map)
 X = np.zeros((D, N)) # terms will go along rows, documents along columns
 i = 0
-for token in all_tokens:
-    a = model.wv[token]
-    index_word_map.append(token)
-    X[i,:] = a
+for tokens in all_tokens:
+    X[:,i] = tokens_to_vector(tokens)
     i += 1
+vocabulary_size = current_index
+print("vocab size:", current_index)
 
-#print ('X shape', X.shape)
-vocabulary_size = N
-#print("vocab size:", N)
+# Transform indexes with tfidf
+# TODO: qué parametros podemos tunear en tfidf?
+transformer = TfidfTransformer(sublinear_tf=True)
+X = transformer.fit_transform(X).toarray()
 
-
-
-# transform the frequency matrix to tfidf TODO: why not countvectorizer?
-# why would tfidf represent
-#transformer = TfidfTransformer() #
-#X = transformer.fit_transform(X).toarray()
-
-#TODO: visualize TSNE with tfidf and embeddings
-reducer = TSNE()
-Z = reducer.fit_transform(X)
+reducer_2 = TSNE(perplexity=20)
+Z_2 = reducer_2.fit_transform(X)
 
 # Run Kmeans TODO: we need to try different Ks and plot that against the cost
-
+'''
 y = []
 for k in range(2, 10):
     print ('k', k)
@@ -340,3 +325,5 @@ plt.annotate(s='k='+str(y.index(min(y))),xy=(y.index(min(y)),min(y)),xytext=(y.i
 plt.title("Costs")
 plt.show()
 plt.savefig("cost.png")
+'''
+_, _, costs, X = soft_k_means(Z_2, 50, index_word_map_tfidf, show_plots=True) # it chooses a K given the size of the vocab
