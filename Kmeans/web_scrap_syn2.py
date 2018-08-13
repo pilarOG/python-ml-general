@@ -8,6 +8,7 @@ import unicodedata
 import pandas as pd
 from pattern.text.es import parse
 
+'''
 outp = codecs.open('noticias-tercera.txt', 'w', encoding='utf-8')
 
 h = open('tercera-titulos.txt', 'r').read().split('\n')
@@ -24,3 +25,12 @@ for n in h:
                 print type(i)
                 outp.writelines(i+'\n')
 outp.close()
+'''
+
+
+url = 'https://www.lacuarta.com/etiqueta/femicidio-en-pudahuel/'
+content = urllib.urlopen(url)
+charset = content.headers.getheader('Content-Type')
+if 'charset' in charset.split(';')[-1]:
+    data = content.read().decode(charset.split('=')[-1])
+    print data

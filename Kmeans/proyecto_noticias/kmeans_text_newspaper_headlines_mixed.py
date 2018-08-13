@@ -5,21 +5,6 @@
 # https://www.udemy.com/cluster-analysis-unsupervised-machine-learning-python
 
 ############################################################################
-# Introduction:
-#
-# I have been taking the Unsupervised ML course in Udemy. At the end of the k-means section an example code is taught where soft k-means is used to
-# find clusters of words in documents. This is my version to understand and apply that code.
-# Data:
-# In this version the data is taken from 10 news from "La Tercera", a chilean newspaper, that are retrive when you search "femicide" (in Spanish, of course)
-# I wanted to try the code on relevant data to see what kind of words where clusteres together in this relevant topic.
-# Features:
-# The code tries two types of features for the text: tf-idf on a one-hot vector of words and embeddings.
-# Hyperparameters:
-# It also does some hyperparamter search by plotting the cost of the different iterations to find optimal hyperparameters.
-# Visualization:
-# We use the original code t-SNE to plot the difference between the two features and the different hyperparameters.
-#
-############################################################################
 # The soft k-means algorithm is commented through out the code to understand the lectures. I'll try to add a read me with the formulas to have the full explanation!
 #
 # For other explanations:
@@ -210,40 +195,32 @@ print (len(docs))
 
 # We will test two representations of the input: word2vec embeddings and a one-hot index of the words
 # For the second one, we will take out all words with few frequence (< 3) and make them pass as stopwords
-frequencies = {}
 all_tokens = []
 for doc in docs:
     tokens = my_tokenizer(doc)
     all_tokens.append(tokens)
-    for t in tokens:
-        if t not in frequencies: frequencies[t] = 1
-        else: frequencies[t] += 1
-
-for tokens in all_tokens:
-    for t in tokens:
-        if frequencies[t] < 3: pass
-        else: stopwords.add(t.lower())
-
-# It is actually interesting to analyze the words that have the least frequency
-# You could think that given the topic the word "asesino" (murderer) would be
-# many times, but, surprise, it's in our stopword list...
-#print ('Low frequency + stopword list')
-#print (stopwords)
 
 # Features version 1: word embedding training
-model = Word2Vec(size=300, window=2, min_count=1) # size is the size of the vector token that will represent each word
+model = Word2Vec(size=200, window=5, min_count=2) # hacer una busqueda de parametros aqui tambien
 model.build_vocab(all_tokens)
 model.train(all_tokens, total_examples=model.corpus_count, epochs=model.iter)
+word_vectors = model.wv
 
 # TODO: chequear a mano algunas distancias: hombre-mujer mujer-violencia violencia-hombre
 
 # Create the matrix of embeddings for each word
 # set the matrix dimensions and creates matrix
+
+
 index_word_map_embeddings = []
 all_words = []
 for t in all_tokens: # Now we want each token independent of their document
-    for n in t: all_words.append(n)
-all_words = set(all_words) # Making a set might change the index compared to the other method
+    for n in t:
+        if n not in word_vectors.vocab:
+            pass
+        else:
+            all_words.append(n)
+all_words = set(all_words)
 N = len(all_words) # N is the number of unique tokens
 D = model.vector_size # D is the vector size of the embedding
 X = np.zeros((N, D)) # terms will go along rows, documents along columns
@@ -260,48 +237,15 @@ print ('Feature vector: '+str(D))
 # We will reduce the dimensionality of the embeddings with t-SNE
 # For further information read:
 # To check the function parameters: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
-reducer = TSNE(perplexity=20)
+reducer = TSNE(perplexity=40) # estimar
 Z = reducer.fit_transform(X)
 
-# Features version 2:
-# Create a word-to-index map to create word-frequency vectors later
-word_index_map = {}
-current_index = 0
-index_word_map_tfidf = []
-for tokens in all_tokens:
-    for token in tokens:
-        if token not in word_index_map:
-            word_index_map[token] = current_index
-            current_index += 1
-            index_word_map_tfidf.append(token)
-# la input matrix es una matriz de N muestras 1040, donde las muestras son palabras
-# y D es un vector de tamaño 462, número de documentos, con 1 o 0 si la palabra está o no en el documento
-
-# set the matrix dimensions and creates matrix
-N = len(all_tokens)
-D = len(word_index_map)
-X = np.zeros((D, N)) # terms will go along rows, documents along columns
-i = 0
-for tokens in all_tokens:
-    X[:,i] = tokens_to_vector(tokens)
-    i += 1
-vocabulary_size = current_index
-print("vocab size:", current_index)
-
-# Transform indexes with tfidf
-# TODO: qué parametros podemos tunear en tfidf?
-transformer = TfidfTransformer(sublinear_tf=True)
-X = transformer.fit_transform(X).toarray()
-
-reducer_2 = TSNE(perplexity=20)
-Z_2 = reducer_2.fit_transform(X)
-
 # Run Kmeans TODO: we need to try different Ks and plot that against the cost
-'''
+
 y = []
-for k in range(2, 10):
+for k in range(5, 500, 5):
     print ('k', k)
-    _, _, costs, X = soft_k_means(Z, k, index_word_map, show_plots=False) # it chooses a K given the size of the vocab
+    _, _, costs, X = soft_k_means(Z, k, index_word_map_embeddings, show_plots=False) # it chooses a K given the size of the vocab
     y.append(costs[-1])
 
 axes = plt.gca()
@@ -325,5 +269,3 @@ plt.annotate(s='k='+str(y.index(min(y))),xy=(y.index(min(y)),min(y)),xytext=(y.i
 plt.title("Costs")
 plt.show()
 plt.savefig("cost.png")
-'''
-_, _, costs, X = soft_k_means(Z_2, 50, index_word_map_tfidf, show_plots=True) # it chooses a K given the size of the vocab
