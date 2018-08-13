@@ -1,7 +1,7 @@
 # Clustering words in the news: an example with femicide news
 
 I have been taking the Unsupervised ML course in Udemy which you can find here:<br>
-https://www.udemy.com/cluster-analysis-unsupervised-machine-learning-python
+https://www.udemy.com/cluster-analysis-unsupervised-machine-learning-python <br>
 And here you can find the original code:<br>
 https://deeplearningcourses.com/c/cluster-analysis-unsupervised-machine-learning-python
 
