@@ -6,7 +6,6 @@ import re
 import codecs
 import unicodedata
 import pandas as pd
-from pattern.text.es import parse
 
 '''
 outp = codecs.open('noticias-tercera.txt', 'w', encoding='utf-8')
@@ -28,7 +27,7 @@ outp.close()
 '''
 
 
-url = 'https://www.lacuarta.com/etiqueta/femicidio-en-pudahuel/'
+url = 'http://www.emol.com/Buscador/?query=femicidio'
 content = urllib.urlopen(url)
 charset = content.headers.getheader('Content-Type')
 if 'charset' in charset.split(';')[-1]:

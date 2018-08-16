@@ -20,7 +20,7 @@ To use it you need to run:
 pip install -r requirements.txt
 ```
 
-### Experiments
+### Hyperparamter tuning
 
 All hyperparameters will be tuned given the cost achieved by K. As this is an unsupervised learning task we don't have a gold standard to tune our parameters against. Therefore, the parameter that get's the lower k-means cost will be used. This is not a proper grid-seach as the hyperparameters were tuned one at the time and in the following order (the hyperparemeters previous to k used a default k = 50). Problem of random initilization.
 
@@ -63,6 +63,13 @@ Hyperparameter tuning of K:<br><br>
 
 <b>K</b>
 
-### Results
+### Analysis and results
 
 I give here a brief analysis on the results.
+
+1) Word embedding model: checking the closest words to some relevant keywords
+
+2) t-SNE visualization: apparently, the most important words are grouping together
+(es del tsne o de k means?)
+
+3) soft k-means clusters: can we find a common criteria or pattern? what can be used for?
