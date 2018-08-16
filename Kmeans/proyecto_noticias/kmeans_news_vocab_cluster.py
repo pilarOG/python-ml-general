@@ -30,7 +30,7 @@ from future.utils import iteritems
 from builtins import range, input
 # Note: you may need to update your version of future
 # sudo pip install -U future
-
+from sklearn.decomposition import PCA
 from gensim.models import Word2Vec
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,13 +38,14 @@ from sklearn.manifold import TSNE
 import codecs
 import unicodedata
 import gensim
+from sklearn.metrics import pairwise_distances_argmin
 
 # Some spanish stopwords (with some misspellings too)
 stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd',
-         u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p',
+         u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p', u'hay',
          u'esta', u'lo', u'fue', u'es', u'quien', u'su', u'sus', u'mas', u'durante', u'hasta', u'estos',
          u'las', u'los', u'y', u'con', u'de', u'para', u'por', u'al', u'a', u'ha', u'luego', u'estar',
-         u'respectivamente', u'asimismo', u'l',
+         u'respectivamente', u'asimismo', u'l', u'cuando', u'les', u'montt',
          u'son', u'ese', u'era', u'eran', u'ser', u'm', u'e', u'g', u'esos', u'eso', u'asi', u'esa', u'esto',
          u'desde', u'una', u'un', u'o', u'en', u'me', u'y', u'se', u'que', u'como', u'porque', u'este', u'']
 
@@ -61,6 +62,56 @@ def my_tokenizer(s):
     tokens = [t for t in tokens if not any(c.isdigit() for c in t)] # remove digits
     return tokens
 
+def plot_iterative_cost(y):
+    plt.figure(figsize=(15, 15))
+    axes = plt.gca()
+    axes.set_xlim(1, len(y))
+    plt.plot(y)
+    plt.plot(y.index(min(y)),min(y), marker='o')
+    plt.annotate(s='k='+str(y.index(min(y))),xy=(y.index(min(y)),min(y)),xytext=(y.index(min(y)),min(y)))
+    plt.title("Costs")
+    plt.savefig("cost.png")
+    plt.show()
+
+def takeClosest(num,collection):
+    return min(collection,key=lambda x:abs(x-num))
+
+def plot_reduced_data(means, assigned_clusters, kmeans_k, Z, word_index, plot_name='test.png'):
+    plt.figure(figsize=(15, 15))
+    # We will only annotate words that are closest to the centroids
+    labels = {}
+    for mean in range(0, means.shape[0]):
+        row = list(means[mean,:])
+        row2 = []
+        centroid = (sum(row))/len(row) # calculate centroid of the cluster
+        # calculate which is the closest data point in the cluster to the centroid
+        [row2.append(row[i]) for i in range(0, len(row)) if assigned_clusters[i] == mean]
+        if row2:
+            closest = takeClosest(centroid, row2)
+            i = row.index(closest)
+            label = word_index[i]
+            labels[label] = Z[i,:][0],Z[i,:][1]
+    for label in labels:
+        plt.annotate(label, labels[label], horizontalalignment='center', verticalalignment='center', size=10, color='red')
+
+    # Create scatter plots of each cluster. We will use the coordinates given by Z for each datapoint,
+    # (because we can't plot something that is not 2-D), but the mark of the datapoint will correspond
+    # to the cluster it was assigned. So we will be able to see both representations.
+    scatters = []
+    cluster_names = []
+    for k in range(0, kmeans_k):
+        cluster_names.append('Cluster '+str(k))
+        x, y = [], []
+        for i in range(0, Z.shape[0]):
+            if assigned_clusters[i] == k:
+                x.append(Z[i,0])
+                y.append(Z[i,1])
+        scat = plt.scatter(x,y,c=np.random.random((kmeans_k,)),marker=np.random.choice(['o', '*', 'h','d', 'v', '^', '<', '>']))
+        scatters.append(scat)
+    plt.legend(scatters,cluster_names, scatterpoints=1, loc='lower left', ncol=8,fontsize=6)
+    plt.savefig(plot_name)
+    plt.show()
+
 # Function to measure distance
 def get_distance(u, v):
     diff = u - v
@@ -76,7 +127,7 @@ def cost(X, R, M):
     return cost
 
 # Main algorithm, soft k-means
-def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_plots=True, plot_name='test.png'):
+def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0):
     N, D = X.shape
     M = np.zeros((K, D))
     R = np.zeros((N, K))
@@ -107,16 +158,6 @@ def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_
                 break
         print ('cost', costs[i])
 
-    if show_plots:
-        random_colors = np.random.random((K, 3))
-        colors = R.dot(random_colors)
-        plt.figure(figsize=(80.0, 80.0))
-        plt.scatter(X[:,0], X[:,1], s=300, alpha=0.9, c=colors)
-        annotate1(X, index_word_map)
-        # plt.show()
-        plt.savefig(plot_name)
-
-
     # print out the clusters
     hard_responsibilities = np.argmax(R, axis=1) # is an N-size array of cluster identities
     # let's "reverse" the order so it's cluster identity -> word index
@@ -132,53 +173,20 @@ def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_
     for cluster, wordlist in cluster2word.items():
       print("cluster", cluster, "->", wordlist)
 
-    return M, R, costs, X
-
-# Function to annotate scatter plot
-def annotate1(X, index_word_map, eps=0.1):
-  N, D = X.shape
-  placed = np.empty((N, D))
-  for i in range(N):
-    print (X[i])
-    x, y = X[i]
-
-    # if x, y is too close to something already plotted, move it
-    close = []
-
-    x, y = X[i]
-    for retry in range(3):
-      for j in range(i):
-        diff = np.array([x, y]) - placed[j]
-
-        # if something is close, append it to the close list
-        if diff.dot(diff) < eps:
-          close.append(placed[j])
-
-      if close:
-        # then the close list is not empty
-        x += (np.random.randn() + 0.5) * (1 if np.random.rand() < 0.5 else -1)
-        y += (np.random.randn() + 0.5) * (1 if np.random.rand() < 0.5 else -1)
-        close = [] # so we can start again with an empty list
-      else:
-        # nothing close, let's break
-        break
-
-    placed[i] = (x, y)
-    #print (index_word_map[i])
-    plt.annotate(
-      s=index_word_map[i],
-      xy=(X[i,0], X[i,1]),
-      xytext=(x, y),
-      arrowprops={
-        'arrowstyle' : '->',
-        'color' : 'black',
-      }
-    )
+    return M, R, costs, X, hard_responsibilities
 
 
 ########## MAIN #################
 # 300-6-3-40-30
-def main(embedding_vector_size=300, embedding_window_size=6, embedding_min_count=3, tsne_perplexity=40, kmeans_k=30, show_cost_plot=False, plot_name='test.png'):
+def main(embedding_vector_size=300,
+         embedding_window_size=6,
+         embedding_min_count=3,
+         tsne_perplexity=40,
+         kmeans_k=30,
+         show_cost_plot=False,
+         plot_name='test.png',
+         show_cluster_plot=True,
+         reducer='tsne'):
 
     # Load the data and split at some naive sentence boundaries
     # I'm doing this to have more documents given that I could find just 30 to 40 news of uneven lengths
@@ -211,8 +219,8 @@ def main(embedding_vector_size=300, embedding_window_size=6, embedding_min_count
     # print(word_vectors.similar_by_word("ministra"))
     # print(word_vectors.similar_by_word("fiscalia"))
     # print(word_vectors.similar_by_word("feminazi"))
-    print(word_vectors.most_similar(positive=["asesino"])) # aparece menos de 7 veces
-    print(word_vectors.most_similar(negative=["asesino"]))
+    # print(word_vectors.most_similar(positive=["asesino"])) # aparece menos de 7 veces
+    # print(word_vectors.most_similar(negative=["asesino"]))
 
     # Given the trained we will build a matrix of similarity between all words,
     # of sixe N_words X N_words, as we want to cluster similar words.
@@ -244,53 +252,32 @@ def main(embedding_vector_size=300, embedding_window_size=6, embedding_min_count
     # For further information read: http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf
     # To check the function parameters: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
     # https://distill.pub/2016/misread-tsne/
-    reducer = TSNE(perplexity=tsne_perplexity, random_state=0) # Hyperparameter to tune
-    Z = reducer.fit_transform(similarity_array)
 
-    from sklearn.decomposition import PCA
-    pcamodel = PCA(n_components=2)
-    Z2 = pcamodel.fit_transform(similarity_array)
+    if reducer == 'tsne':
+        reducer = TSNE(perplexity=tsne_perplexity, random_state=0) # Hyperparameter to tune
+        Z = reducer.fit_transform(similarity_array)
+    elif reducer == 'pca':
+        pca = PCA(n_components=2)
+        Z = pca.fit_transform((similarity_array))
 
     # Run Kmeans TODO: we need to try different Ks and plot that against the cost
     if show_cost_plot==False:
-        _, _, costs, _ = soft_k_means(Z2, kmeans_k, word_index, prob_vector=probs, show_plots=True, plot_name=plot_name)
+        means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
+        if show_cluster_plot==True:
+            plot_reduced_data(means, hard, kmeans_k, Z, word_index,plot_name=plot_name)
         return costs
+
     else:
-        y = []
-        for k in range(5, soft_k_means, 5):
+        iteration_costs = []
+        for k in range(5, kmeans_k, 5):
             print ('k', k)
-            _, _, costs, X = soft_k_means(Z, k, word_index, prob_vector=probs, show_plots=False) # it chooses a K given the size of the vocab
-            y.append(costs[-1])
-
-        # TODO: turn this into a function
-        axes = plt.gca()
-        axes.set_xlim(1, len(y))
-        plt.plot(y)
-        print (y)
-        print (y.index(min(y)),min(y))
-        slopes = [x - z for x, z in zip(y[:-1], y[1:])]
-        p = slopes.index(max(slopes))
-        print ('slope')
-        print (slopes)
-
-        p = y[p]
-        i = y.index(p)
-        print (p, i)
-        plt.plot(i,p, marker='x')
-        plt.annotate(s='k='+str(i),xy=(i,p),xytext=(i,p))
-        plt.plot(y.index(min(y)),min(y), marker='o')
-        print (y.index(min(y)), min(y))
-        plt.annotate(s='k='+str(y.index(min(y))),xy=(y.index(min(y)),min(y)),xytext=(y.index(min(y)),min(y)))
-        plt.title("Costs")
-        plt.show()
-        plt.savefig("cost.png")
-
-
-
+            means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
+            iteration_costs.append(costs[-1])
+        plot_iterative_cost(iteration_costs)
 
 # Run. Defined main to run hypermamter tuning
 
-main()
+main(show_cost_plot=True, kmeans_k=50)
 '''
 outf = open('results_perplexity.txt', 'w')
 # For example, tune embedding_vector_size
