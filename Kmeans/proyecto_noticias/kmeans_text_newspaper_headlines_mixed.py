@@ -40,10 +40,11 @@ import unicodedata
 import gensim
 
 # Some spanish stopwords (with some misspellings too)
-stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los',
-         u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le',
+stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd',
+         u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p',
          u'esta', u'lo', u'fue', u'es', u'quien', u'su', u'sus', u'mas', u'durante', u'hasta', u'estos',
          u'las', u'los', u'y', u'con', u'de', u'para', u'por', u'al', u'a', u'ha', u'luego', u'estar',
+         u'respectivamente', u'asimismo', u'l',
          u'son', u'ese', u'era', u'eran', u'ser', u'm', u'e', u'g', u'esos', u'eso', u'asi', u'esa', u'esto',
          u'desde', u'una', u'un', u'o', u'en', u'me', u'y', u'se', u'que', u'como', u'porque', u'este', u'']
 
@@ -60,17 +61,6 @@ def my_tokenizer(s):
     tokens = [t for t in tokens if not any(c.isdigit() for c in t)] # remove digits
     return tokens
 
-# Function to create one-hot vector tokens for each word
-# Each word will consist on a vector of 1 and 0s with the length of the documents
-# meaning that the vector is saying if the word appears in the document or not
-# TODO: confirm this
-def tokens_to_vector(tokens):
-    x = np.zeros(len(word_index_map))
-    for t in tokens:
-        i = word_index_map[t]
-        x[i] += 1
-    return x
-
 # Function to measure distance
 def get_distance(u, v):
     diff = u - v
@@ -86,7 +76,7 @@ def cost(X, R, M):
     return cost
 
 # Main algorithm, soft k-means
-def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_plots=True):
+def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_plots=True, plot_name='test.png'):
     N, D = X.shape
     M = np.zeros((K, D))
     R = np.zeros((N, K))
@@ -124,7 +114,7 @@ def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0, show_
         plt.scatter(X[:,0], X[:,1], s=300, alpha=0.9, c=colors)
         annotate1(X, index_word_map)
         # plt.show()
-        plt.savefig("test.png")
+        plt.savefig(plot_name)
 
 
     # print out the clusters
@@ -149,6 +139,7 @@ def annotate1(X, index_word_map, eps=0.1):
   N, D = X.shape
   placed = np.empty((N, D))
   for i in range(N):
+    print (X[i])
     x, y = X[i]
 
     # if x, y is too close to something already plotted, move it
@@ -186,8 +177,8 @@ def annotate1(X, index_word_map, eps=0.1):
 
 
 ########## MAIN #################
-
-def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count=2, tsne_perplexity=40, kmeans_k=30, show_cost_plot=False):
+# 300-6-3-40-30
+def main(embedding_vector_size=300, embedding_window_size=6, embedding_min_count=3, tsne_perplexity=40, kmeans_k=30, show_cost_plot=False, plot_name='test.png'):
 
     # Load the data and split at some naive sentence boundaries
     # I'm doing this to have more documents given that I could find just 30 to 40 news of uneven lengths
@@ -195,8 +186,6 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
     docs = codecs.open('noticias-emol.txt', encoding='utf-8').read().split('\n')
     [cleaned_docs.append(do) for do in docs if 'http' not in do and do] # This is an extra step to take out the links in the data
     docs = [line.rstrip() for line in '\n'.join(cleaned_docs).replace(',', '\n').replace('.', '\n').replace('\"', '\n').split('\n')]
-
-
     print ('Number of document fragments: '+str(len(docs)))
 
     # We tokenize each word in the fragments, turning each into a list of tokens
@@ -213,15 +202,17 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
     # in the model some specific relevant word given the topic and the function allows us to get back the
     # other words that are closest to the given word. In the Readme there is a deeper analysis of this.
 
-    print(word_vectors.similar_by_word("hombre"))
-    print(word_vectors.similar_by_word("mujer"))
-    print(word_vectors.similar_by_word("violencia"))
-    print(word_vectors.similar_by_word("genero"))
-    print(word_vectors.similar_by_word("asesino"))
-    print(word_vectors.similar_by_word("victima"))
-    print(word_vectors.similar_by_word("ministra"))
-    print(word_vectors.similar_by_word("fiscalia"))
-
+    # print(word_vectors.similar_by_word("hombre"))
+    # print(word_vectors.similar_by_word("mujer"))
+    # print(word_vectors.similar_by_word("violencia"))
+    # print(word_vectors.similar_by_word("genero"))
+    # print(word_vectors.similar_by_word("asesino"))
+    # print(word_vectors.similar_by_word("victima"))
+    # print(word_vectors.similar_by_word("ministra"))
+    # print(word_vectors.similar_by_word("fiscalia"))
+    # print(word_vectors.similar_by_word("feminazi"))
+    print(word_vectors.most_similar(positive=["asesino"])) # aparece menos de 7 veces
+    print(word_vectors.most_similar(negative=["asesino"]))
 
     # Given the trained we will build a matrix of similarity between all words,
     # of sixe N_words X N_words, as we want to cluster similar words.
@@ -241,7 +232,7 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
     frequency = {}
     rare_words = []
     for token in word_index: # Now we want each token independent of their document
-        if token not in word_vectors.vocab: rare_words.append(token)
+        if token not in word_vectors.vocab: rare_words.append(token) #TODO: print this or do something with it
         else:
             if token not in frequency: frequency[token] = 1
             else: frequency[token] += 1
@@ -252,12 +243,17 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
     # Finally, we will reduce the dimensionality of the embeddings with t-SNE
     # For further information read: http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf
     # To check the function parameters: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
-    reducer = TSNE(perplexity=tsne_perplexity) # Hyperparameter to tune
+    # https://distill.pub/2016/misread-tsne/
+    reducer = TSNE(perplexity=tsne_perplexity, random_state=0) # Hyperparameter to tune
     Z = reducer.fit_transform(similarity_array)
+
+    from sklearn.decomposition import PCA
+    pcamodel = PCA(n_components=2)
+    Z2 = pcamodel.fit_transform(similarity_array)
 
     # Run Kmeans TODO: we need to try different Ks and plot that against the cost
     if show_cost_plot==False:
-        _, _, costs, X = soft_k_means(Z, kmeans_k, word_index, prob_vector=probs, show_plots=False)
+        _, _, costs, _ = soft_k_means(Z2, kmeans_k, word_index, prob_vector=probs, show_plots=True, plot_name=plot_name)
         return costs
     else:
         y = []
@@ -266,6 +262,7 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
             _, _, costs, X = soft_k_means(Z, k, word_index, prob_vector=probs, show_plots=False) # it chooses a K given the size of the vocab
             y.append(costs[-1])
 
+        # TODO: turn this into a function
         axes = plt.gca()
         axes.set_xlim(1, len(y))
         plt.plot(y)
@@ -294,12 +291,11 @@ def main(embedding_vector_size=300, embedding_window_size=5, embedding_min_count
 # Run. Defined main to run hypermamter tuning
 
 main()
-
 '''
-outf = open('results_embedding_vector_size.txt', 'w')
+outf = open('results_perplexity.txt', 'w')
 # For example, tune embedding_vector_size
-for n in range(20,300,20):
-    n_cost = main(embedding_vector_size=n)
-    outf.writelines(str(n)+str(n_cost[-1])+'\n')
+for tuning in range(20,120,20):
+    n_cost = main(tsne_perplexity=tuning, plot_name='test_tsne_'+str(tuning)+'.png')
+    outf.writelines(str(tuning)+'\t'+str(n_cost[-1])+'\n')
 outf.close()
 '''

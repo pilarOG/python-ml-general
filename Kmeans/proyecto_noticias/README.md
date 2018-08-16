@@ -69,7 +69,9 @@ I give here a brief analysis on the results.
 
 1) Word embedding model: checking the closest words to some relevant keywords
 
+https://github.com/RaRe-Technologies/gensim/issues/1920
+
 2) t-SNE visualization: apparently, the most important words are grouping together
 (es del tsne o de k means?)
-
+https://www.analyticsvidhya.com/blog/2017/01/t-sne-implementation-r-python/
 3) soft k-means clusters: can we find a common criteria or pattern? what can be used for?
