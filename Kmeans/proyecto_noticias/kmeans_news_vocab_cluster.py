@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
-# Most of this code belongs to:
+# The original code I based on belongs to:
 # https://deeplearningcourses.com/c/cluster-analysis-unsupervised-machine-learning-python
 # https://www.udemy.com/cluster-analysis-unsupervised-machine-learning-python
 
 ############################################################################
-# The soft k-means algorithm is commented through out the code to understand the lectures. I'll try to add a read me with the formulas to have the full explanation!
+# The soft k-means algorithm is commented through out the code to understand the lectures.
 #
 # For other explanations:
 # http://rosalind.info/problems/ba8d/
@@ -32,20 +32,19 @@ from builtins import range, input
 # sudo pip install -U future
 from sklearn.decomposition import PCA
 from gensim.models import Word2Vec
-import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-import codecs
+import matplotlib.pyplot as plt
 import unicodedata
+import numpy as np
+import codecs
 import gensim
-from sklearn.metrics import pairwise_distances_argmin
 
-# Some spanish stopwords (with some misspellings too)
+# Some spanish stopwords (with some misspellings too) and some specific for this data
 stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd',
          u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p', u'hay',
          u'esta', u'lo', u'fue', u'es', u'quien', u'su', u'sus', u'mas', u'durante', u'hasta', u'estos',
          u'las', u'los', u'y', u'con', u'de', u'para', u'por', u'al', u'a', u'ha', u'luego', u'estar',
-         u'respectivamente', u'asimismo', u'l', u'cuando', u'les', u'montt',
+         u'respectivamente', u'asimismo', u'l', u'les', u'montt', u'nos', u'va', u'emol', u'ademas',
          u'son', u'ese', u'era', u'eran', u'ser', u'm', u'e', u'g', u'esos', u'eso', u'asi', u'esa', u'esto',
          u'desde', u'una', u'un', u'o', u'en', u'me', u'y', u'se', u'que', u'como', u'porque', u'este', u'']
 
@@ -62,14 +61,15 @@ def my_tokenizer(s):
     tokens = [t for t in tokens if not any(c.isdigit() for c in t)] # remove digits
     return tokens
 
-def plot_iterative_cost(y):
-    plt.figure(figsize=(15, 15))
-    axes = plt.gca()
-    axes.set_xlim(1, len(y))
+# Function to plot cost against iterations of k
+# It will help to select best k for the data
+def plot_iterative_cost(y, mink, step):
+    plt.figure(figsize=(10, 10))
+    plt.axes()
+    plt.xlim([mink, len(y)])
+    plt.xticks(np.arange(mink, len(y)-1, step))
     plt.plot(y)
-    plt.plot(y.index(min(y)),min(y), marker='o')
-    plt.annotate(s='k='+str(y.index(min(y))),xy=(y.index(min(y)),min(y)),xytext=(y.index(min(y)),min(y)))
-    plt.title("Costs")
+    plt.title("Cost vs k")
     plt.savefig("cost.png")
     plt.show()
 
@@ -77,7 +77,7 @@ def takeClosest(num,collection):
     return min(collection,key=lambda x:abs(x-num))
 
 def plot_reduced_data(means, assigned_clusters, kmeans_k, Z, word_index, plot_name='test.png'):
-    plt.figure(figsize=(15, 15))
+    plt.figure(figsize=(10, 10))
     # We will only annotate words that are closest to the centroids
     labels = {}
     for mean in range(0, means.shape[0]):
@@ -115,7 +115,7 @@ def plot_reduced_data(means, assigned_clusters, kmeans_k, Z, word_index, plot_na
 # Function to measure distance
 def get_distance(u, v):
     diff = u - v
-    return diff.dot(diff)
+    return diff.dot(diff) # dot product of the values gives the square distance
 
 # Function to calculate cost
 def cost(X, R, M):
@@ -133,30 +133,29 @@ def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0):
     R = np.zeros((N, K))
     exponents = np.empty((N, K))
 
-    # initialize M to random
+    # Initialize M to random: we are passing by frequencies to weight the random
     for k in range(K):
         M[k] = X[np.random.choice(N, p=prob_vector)]
 
-    costs = np.zeros(max_iter)
+    costs = np.zeros(max_iter) # cost progress at each iteration
+
+    # Main algorithm
     for i in range(max_iter):
-        # step 1: determine assignments / resposibilities
-        # is this inefficient?
+        # STEP 1: determine assignments / resposibilities or E-step > centers to soft clusters: After centers have been selected,
+        # assign each data point a “responsibility” value for each cluster, where higher values correspond to stronger cluster membership.
         for k in range(K):
             for n in range(N):
-                # R[n,k] = np.exp(-beta*d(M[k], X[n])) / np.sum( np.exp(-beta*d(M[j], X[n])) for j in range(K) )
                 exponents[n,k] = np.exp(-beta*get_distance(M[k], X[n]))
-
         R = exponents / exponents.sum(axis=1, keepdims=True)
-
-        # step 2: recalculate means
+        # STEP 2: recalculate means or M-step > soft clusters to centers: After data points have been assigned to soft clusters, compute new centers.
         for k in range(K):
             M[k] = R[:,k].dot(X) / R[:,k].sum()
 
         costs[i] = cost(X, R, M)
         if i > 0:
-            if np.abs(costs[i] - costs[i-1]) < 10e-5:
+            if np.abs(costs[i] - costs[i-1]) < 10e-5: # If the cost have not change much between iterations, stop
                 break
-        print ('cost', costs[i])
+        print ('Cost', costs[i])
 
     # print out the clusters
     hard_responsibilities = np.argmax(R, axis=1) # is an N-size array of cluster identities
@@ -177,7 +176,7 @@ def soft_k_means(X, K, index_word_map, prob_vector, max_iter=20, beta=1.0):
 
 
 ########## MAIN #################
-# 300-6-3-40-30
+# Best combination of hyperparameters found: 300-6-3-40-30
 def main(embedding_vector_size=300,
          embedding_window_size=6,
          embedding_min_count=3,
@@ -248,10 +247,7 @@ def main(embedding_vector_size=300,
     total_count = sum(frequency.values())
     [probs.append(float(frequency[token])/float(total_count)) for token in word_index]
 
-    # Finally, we will reduce the dimensionality of the embeddings with t-SNE
-    # For further information read: http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf
-    # To check the function parameters: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
-    # https://distill.pub/2016/misread-tsne/
+    # Finally, we will reduce the dimensionality of the embeddings
 
     if reducer == 'tsne':
         reducer = TSNE(perplexity=tsne_perplexity, random_state=0) # Hyperparameter to tune
@@ -269,11 +265,12 @@ def main(embedding_vector_size=300,
 
     else:
         iteration_costs = []
-        for k in range(5, kmeans_k, 5):
+        initial_k, step_k = 5, 5
+        for k in range(initial_k, kmeans_k, step_k):
             print ('k', k)
             means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
             iteration_costs.append(costs[-1])
-        plot_iterative_cost(iteration_costs)
+        plot_iterative_cost(iteration_costs, initial_k, step_k)
 
 # Run. Defined main to run hypermamter tuning
 
