@@ -13,13 +13,6 @@ At the end of the k-means section an example code is taught where soft k-means i
 <b>Soft k-means</b>: The complete embedding matrix is used as input to soft K-means to find clusters of the words. The goal is to find which words tend to appear together or related and with such representation have some insights about the topic of the data and the editor's view of the topic. In the code you can find further details about the algorithm.<br><br>
 <b>Output</b>: the script outputs the clusters found and the words in it and a scatter plot of the reduced data with the word found closest to the centroid of the cluster.
 
-### Requirements
-
-To use it you need to run:
-```
-pip install -r requirements.txt
-```
-
 ### Results
 
 The idea of this project was to use this algorithms and models to extract representations on a topic that is very relevant to me. I analyzed the representation I was creating at several steps in the process.
