@@ -34,9 +34,11 @@ Words closest to "hombre"
 
 Words closest to "mujer"
 [(u'contra', 0.8472951054573059), (u'violencia', 0.8427916765213013), (u'mujeres', 0.8367606997489929), (u'femicidio', 0.8354204893112183), (u'no', 0.8242781758308411), (u'pareja', 0.8217502236366272), (u'victima', 0.8059316873550415), (u'carabineros', 0.7945513129234314), (u'legal', 0.7912412881851196), (u'habria', 0.7858884930610657)]
+```
 
 However, if you compare "asesino" and "victima" (murderer and victim), the representations are:
 
+```
 Words closest to "asesino"
 [(u'carabineros', 0.2792244255542755), (u'acusado', 0.26279664039611816), (u'hija', 0.2594226896762848), (u'region', 0.2566441595554352), (u'arma', 0.25612837076187134), (u'sin', 0.2532888352870941), (u'hecho', 0.2503329813480377), (u'detenido', 0.24895012378692627), (u'caso', 0.24667774140834808), (u'homicidios', 0.24482499063014984)]
 
@@ -51,7 +53,12 @@ Only by checking the frequency of the words some interesting points come up: for
 You can run these command with different relevant words and make your conclusions.
 
 
-2) t-SNE visualization: apparently, the most important words are grouping together
-(es del tsne o de k means?)
-https://www.analyticsvidhya.com/blog/2017/01/t-sne-implementation-r-python/
+2) t-SNE visualization: given the high dimensions of our data we can't directly visualize the k-means results.
+Therefore, we apply a dimensionality reduction technique to visualize. However, at the same time I don't want to
+lose the information given by k-means. Because of that the scatter plot is plotting the data points using the coordinates
+given by t-SNE but the symbols are representing the cluster the points belong to and additionally, a word was annotated, the datapoint closest to the centroid of the cluster.
+
+![t-SNE visualization](test.png)
+
+
 3) soft k-means clusters: can we find a common criteria or pattern? what can be used for?

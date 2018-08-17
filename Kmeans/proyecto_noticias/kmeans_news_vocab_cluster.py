@@ -65,7 +65,7 @@ def takeClosest(num,collection):
     return min(collection,key=lambda x:abs(x-num))
 
 def plot_reduced_data(means, assigned_clusters, kmeans_k, Z, word_index, plot_name='test.png'):
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(20, 20))
     # We will only annotate words that are closest to the centroids
     labels = {}
     for mean in range(0, means.shape[0]):
@@ -233,7 +233,7 @@ def main(embedding_vector_size=300,
     # Finally, we will reduce the dimensionality of the embeddings to visualize the data
     # Two options, t-SNE or PCA
     if reducer == 'tsne':
-        reducer = TSNE(perplexity=tsne_perplexity)
+        reducer = TSNE(perplexity=tsne_perplexity, random_state=0)
         Z = reducer.fit_transform(similarity_array)
     elif reducer == 'pca':
         pca = PCA(n_components=2)
