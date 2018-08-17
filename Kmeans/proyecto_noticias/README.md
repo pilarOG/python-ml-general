@@ -7,11 +7,11 @@ https://deeplearningcourses.com/c/cluster-analysis-unsupervised-machine-learning
 
 At the end of the k-means section an example code is taught where soft k-means is used to find clusters of words in documents. This is my version to understand and apply that code.
 
-<b>Data</b>: In this version the data is taken from 10 news from "La Tercera", a chilean newspaper, that are retrieve when you search "femicide" (in Spanish, of course). I wanted to try the code on relevant data to see what kind of words where clusters together in this relevant topic. <br><br>
-<b>Features</b>: Each sentence in the news data is embedded using Gensim Word2Vec. Then each word is represented with the embedding vector.<br><br>
-<b>Visualization</b>: The resulting embeddings are visualized using t-SNE, reducing dimensionality to 2.<br><br>
-<b>Soft k-means</b>: The reduced vectors are used as input to soft K-means to find clusters of the words. The goal is to find which words tend to appear together or related and with such representation have some insights about the topic of the data and the editor's view of the topic. In the code you can find further details about the algorithm.<br><br>
-<b>Finding K</b>: in the folder you can find the plot "best-K.png" which shows how I tried different K's until finding the optimal one which is the one used in the example code.
+<b>Data</b>: In this version the data is taken from about 30 to 40 news from "Emol.cl", an online chilean newspaper, that are retrieved when you search "femicide" (in Spanish, of course). I wanted to try the code on relevant data to see what kind of words where clustered together in this relevant topic. <br><br>
+<b>Features</b>: Each sentence/fragment in the news data is embedded using Gensim Word2Vec. Then each word is represented with an embedding vector of the similarity of that word with all the other words in the data.<br><br>
+<b>Visualization</b>: The resulting embeddings are visualized using dimensionality reduction techniques, you can choose between t-SNE and PCA.<br><br>
+<b>Soft k-means</b>: The complete embedding matrix is used as input to soft K-means to find clusters of the words. The goal is to find which words tend to appear together or related and with such representation have some insights about the topic of the data and the editor's view of the topic. In the code you can find further details about the algorithm.<br><br>
+<b>Output</b>: the script outputs the clusters found and the words in it and a scatter plot of the reduced data with the word found closest to the centroid of the cluster.
 
 ### Requirements
 
@@ -20,56 +20,36 @@ To use it you need to run:
 pip install -r requirements.txt
 ```
 
-### Hyperparamter tuning
+### Results
 
-All hyperparameters will be tuned given the cost achieved by K. As this is an unsupervised learning task we don't have a gold standard to tune our parameters against. Therefore, the parameter that get's the lower k-means cost will be used. This is not a proper grid-seach as the hyperparameters were tuned one at the time and in the following order (the hyperparemeters previous to k used a default k = 50). Problem of random initilization.
+The idea of this project was to use this algorithms and models to extract representations on a topic that is very relevant to me. I analyzed the representation I was creating at several steps in the process.
 
-Hyperparameter tuning of embeddings:<br><br>
+1) Word embedding model: checking the closest words to some relevant keywords.
 
-Word2Vec is an unsupervised representation of words in a context (distributed word representation).
-For the original source you can read: https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf
+The word embedding model allows to obtain the words that are closest to a keyword. For example, you can see that "hombre" and "mujer" (men and woman) have a similar representation given that they are involved in the event.
 
-<b>Vector size</b>: it determines the dimensionality of the word vector. <br><br> (window=3, min_count=2)
+```
+Words closest to "hombre"
+[(u'violencia', 0.7981762290000916), (u'femicidio', 0.794640064239502), (u'mujeres', 0.7895470857620239), (u'mujer', 0.78425133228302), (u'no', 0.7821941375732422), (u'legal', 0.7791281938552856), (u'contra', 0.7712581157684326), (u'victima', 0.7697762846946716), (u'pareja', 0.7689832448959351), (u'carabineros', 0.7614375352859497)]
 
-150 = cost 5977.69716138
-200 = cost 4621.96378964
-250 = cost 5205.64797857
-300 = cost 5792.35941545
+Words closest to "mujer"
+[(u'contra', 0.8472951054573059), (u'violencia', 0.8427916765213013), (u'mujeres', 0.8367606997489929), (u'femicidio', 0.8354204893112183), (u'no', 0.8242781758308411), (u'pareja', 0.8217502236366272), (u'victima', 0.8059316873550415), (u'carabineros', 0.7945513129234314), (u'legal', 0.7912412881851196), (u'habria', 0.7858884930610657)]
 
-<b>Window</b><br><br> (size=200, min_count=2)
+However, if you compare "asesino" and "victima" (murderer and victim), the representations are:
 
-1 = cost 5073.87229277
-2 = cost 4800.43862261
-3 = cost 5449.21504495
-4 = cost 4691.96661704
-5 = cost 4485.86749579
-6 = cost 4639.6917254
+Words closest to "asesino"
+[(u'carabineros', 0.2792244255542755), (u'acusado', 0.26279664039611816), (u'hija', 0.2594226896762848), (u'region', 0.2566441595554352), (u'arma', 0.25612837076187134), (u'sin', 0.2532888352870941), (u'hecho', 0.2503329813480377), (u'detenido', 0.24895012378692627), (u'caso', 0.24667774140834808), (u'homicidios', 0.24482499063014984)]
 
-Hyperparameters tuning of t-SNE:
+Words closest to "victima"
+[(u'femicidio', 0.8261522054672241), (u'violencia', 0.8070477247238159), (u'mujeres', 0.8070352077484131), (u'mujer', 0.8059316873550415), (u'contra', 0.7956814169883728), (u'pareja', 0.7954514622688293), (u'no', 0.778271496295929), (u'habria', 0.7752811312675476), (u'familia', 0.7734053730964661), (u'legal', 0.7698884010314941)]
+```
 
-<b>Perplexity</b> A mayor perplexidad se van juntando más los clusters <br><br>
+One thing that I notice right away is that in "woman" and in "victim" we have the word "habría" which means "it would".
 
-20 = cost 5013.82773706
-25 = cost 3869.31913356
-30 = cost 3305.60081724
-35 = cost 2531.70231462
-40 = cost 2206.22883093
-45 = cost 1522.89252018
-50 = cost 1077.59035971
-55 = cost 633.523643424
-60 = cost 425.583739954
+Only by checking the frequency of the words some interesting points come up: for example, the word murderer only appeared 6 times in all the data while the news preferred other words to refer to this person, such as "acusado" (accused) 22 times, or "pareja" (partner) 88 times, or simply "hombre" (men) 60 times.
 
-Hyperparameter tuning of K:<br><br>
+You can run these command with different relevant words and make your conclusions.
 
-<b>K</b>
-
-### Analysis and results
-
-I give here a brief analysis on the results.
-
-1) Word embedding model: checking the closest words to some relevant keywords
-
-https://github.com/RaRe-Technologies/gensim/issues/1920
 
 2) t-SNE visualization: apparently, the most important words are grouping together
 (es del tsne o de k means?)

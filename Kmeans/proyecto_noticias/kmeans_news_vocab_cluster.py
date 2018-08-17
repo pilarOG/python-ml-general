@@ -61,18 +61,6 @@ def my_tokenizer(s):
     tokens = [t for t in tokens if not any(c.isdigit() for c in t)] # remove digits
     return tokens
 
-# Function to plot cost against iterations of k
-# It will help to select best k for the data
-def plot_iterative_cost(y, mink, step):
-    plt.figure(figsize=(10, 10))
-    plt.axes()
-    plt.xlim([mink, len(y)])
-    plt.xticks(np.arange(mink, len(y)-1, step))
-    plt.plot(y)
-    plt.title("Cost vs k")
-    plt.savefig("cost.png")
-    plt.show()
-
 def takeClosest(num,collection):
     return min(collection,key=lambda x:abs(x-num))
 
@@ -181,8 +169,7 @@ def main(embedding_vector_size=300,
          embedding_window_size=6,
          embedding_min_count=3,
          tsne_perplexity=40,
-         kmeans_k=30,
-         show_cost_plot=False,
+         kmeans_k=50,
          plot_name='test.png',
          show_cluster_plot=True,
          reducer='tsne'):
@@ -200,6 +187,7 @@ def main(embedding_vector_size=300,
     [all_tokens.append(my_tokenizer(doc)) for doc in docs]
 
     # Word embedding training: a list of list is feed into the model
+    PYTHONHASHSEED=1 # This is to ensure reproducible results when training the word2vec, so the analysis in my readme makes some sense
     model = Word2Vec(size=embedding_vector_size, window=embedding_window_size, min_count=embedding_min_count) # Hyperparameters to experiment with
     model.build_vocab(all_tokens)
     model.train(all_tokens, total_examples=model.corpus_count, epochs=model.iter)
@@ -208,18 +196,14 @@ def main(embedding_vector_size=300,
     # Given the trained embeddings we can already get some interesting results. Here we are searching
     # in the model some specific relevant word given the topic and the function allows us to get back the
     # other words that are closest to the given word. In the Readme there is a deeper analysis of this.
-
-    # print(word_vectors.similar_by_word("hombre"))
-    # print(word_vectors.similar_by_word("mujer"))
-    # print(word_vectors.similar_by_word("violencia"))
-    # print(word_vectors.similar_by_word("genero"))
-    # print(word_vectors.similar_by_word("asesino"))
-    # print(word_vectors.similar_by_word("victima"))
-    # print(word_vectors.similar_by_word("ministra"))
-    # print(word_vectors.similar_by_word("fiscalia"))
-    # print(word_vectors.similar_by_word("feminazi"))
-    # print(word_vectors.most_similar(positive=["asesino"])) # aparece menos de 7 veces
-    # print(word_vectors.most_similar(negative=["asesino"]))
+    #print("Words closest to \"hombre\"")
+    #print(word_vectors.similar_by_word("hombre"))
+    #print("Words closest to \"mujer\"")
+    #print(word_vectors.similar_by_word("mujer"))
+    #print("Words closest to \"asesino\"")
+    #print(word_vectors.similar_by_word("asesino"))
+    #print("Words closest to \"victima\"")
+    #print(word_vectors.similar_by_word("victima"))
 
     # Given the trained we will build a matrix of similarity between all words,
     # of sixe N_words X N_words, as we want to cluster similar words.
@@ -227,7 +211,6 @@ def main(embedding_vector_size=300,
     # for more detail
     # https://groups.google.com/forum/#!topic/gensim/gfOuXGzvsA8
     # https://radimrehurek.com/gensim/models/keyedvectors.html
-    # TODO: give more detail on this code
     similarity_matrix = []
     index = gensim.similarities.MatrixSimilarity(gensim.matutils.Dense2Corpus(model.wv.syn0.T))
     [similarity_matrix.append(sims) for sims in index]
@@ -239,7 +222,7 @@ def main(embedding_vector_size=300,
     frequency = {}
     rare_words = []
     for token in word_index: # Now we want each token independent of their document
-        if token not in word_vectors.vocab: rare_words.append(token) #TODO: print this or do something with it
+        if token not in word_vectors.vocab: rare_words.append(token) # You can check here which words were dumped
         else:
             if token not in frequency: frequency[token] = 1
             else: frequency[token] += 1
@@ -247,34 +230,25 @@ def main(embedding_vector_size=300,
     total_count = sum(frequency.values())
     [probs.append(float(frequency[token])/float(total_count)) for token in word_index]
 
-    # Finally, we will reduce the dimensionality of the embeddings
-
+    # Finally, we will reduce the dimensionality of the embeddings to visualize the data
+    # Two options, t-SNE or PCA
     if reducer == 'tsne':
-        reducer = TSNE(perplexity=tsne_perplexity, random_state=0) # Hyperparameter to tune
+        reducer = TSNE(perplexity=tsne_perplexity)
         Z = reducer.fit_transform(similarity_array)
     elif reducer == 'pca':
         pca = PCA(n_components=2)
         Z = pca.fit_transform((similarity_array))
 
-    # Run Kmeans TODO: we need to try different Ks and plot that against the cost
-    if show_cost_plot==False:
-        means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
-        if show_cluster_plot==True:
-            plot_reduced_data(means, hard, kmeans_k, Z, word_index,plot_name=plot_name)
-        return costs
+    # Run Kmeans:
+    means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
+    if show_cluster_plot==True:
+        plot_reduced_data(means, hard, kmeans_k, Z, word_index, plot_name=plot_name)
+    return costs
 
-    else:
-        iteration_costs = []
-        initial_k, step_k = 5, 5
-        for k in range(initial_k, kmeans_k, step_k):
-            print ('k', k)
-            means, _, costs, _, hard = soft_k_means(similarity_array, kmeans_k, word_index, prob_vector=probs)
-            iteration_costs.append(costs[-1])
-        plot_iterative_cost(iteration_costs, initial_k, step_k)
+# Run predfined parameters
+main()
 
-# Run. Defined main to run hypermamter tuning
-
-main(show_cost_plot=True, kmeans_k=50)
+# Or run a range of values for some hyperparameter
 '''
 outf = open('results_perplexity.txt', 'w')
 # For example, tune embedding_vector_size
