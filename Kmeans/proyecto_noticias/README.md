@@ -60,5 +60,8 @@ given by t-SNE but the symbols are representing the cluster the points belong to
 
 ![t-SNE visualization](test.png)
 
+3) Soft k-means clusters: finally, the clustered words are printed by the script. The cluster will change each time given the randomization of some parts of the algorithm. This particular algorithm is very interesting because is a "soft" k-means, which means it does not only gives you the cluster each data point belongs to, but we also a responsibility matrix (R) that says how much each data point belongs to each cluster. It would be interesting to see which clusters share data points. In our data the words that refer to the participants and the event of the femicide tend to appear in similar clusters, while the declarations of the government are other entities are separated, as well as other words related to the topic but that do not correspond to the event itself, for example, words that are speaking about demonstrations or criticism to these (such as "feminazi").
 
-3) soft k-means clusters: can we find a common criteria or pattern? what can be used for?
+### Conclusions
+
+Finally, all this information is valuable to understand how this topic is being modeled and represented in the news. We could feed the script with other sort of the data and extract these representations. The main advantage of the presented algorithms and models is the fact that they unsupervised: this process did not required manually labeled data (the only manual labor was probably to append some specific stopwords). Therefore, is an approach we can use with any dataset available to have a first insight on how that text data is represented.
