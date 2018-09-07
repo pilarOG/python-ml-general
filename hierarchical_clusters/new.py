@@ -20,11 +20,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from scipy.spatial.distance import pdist
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster, cophenet
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Some spanish stopwords (with some misspellings too) and some specific for this data
-stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd',
+stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd', u'te',
          u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p', u'hay',
          u'esta', u'lo', u'fue', u'es', u'quien', u'su', u'sus', u'mas', u'durante', u'hasta', u'estos',
          u'las', u'los', u'y', u'con', u'de', u'para', u'por', u'al', u'a', u'ha', u'luego', u'estar',
@@ -49,14 +49,9 @@ def my_tokenizer(s):
 
 ########## MAIN #################
 # Best combination of hyperparameters found: 300-6-3-40-30
-def main(embedding_vector_size=300,
-         embedding_window_size=6,
-         embedding_min_count=3,
-         tsne_perplexity=40,
-         kmeans_k=50,
-         plot_name='test.png',
-         show_cluster_plot=True,
-         reducer='tsne'):
+def main(embedding_vector_size=100,
+         embedding_window_size=5,
+         embedding_min_count=3):
 
     # Load the data and split at some naive sentence boundaries
     # I'm doing this to have more documents given that I could find just 30 to 40 news of uneven lengths
@@ -98,15 +93,31 @@ def main(embedding_vector_size=300,
     similarity_matrix = []
     index = gensim.similarities.MatrixSimilarity(gensim.matutils.Dense2Corpus(model.wv.syn0.T))
     [similarity_matrix.append(sims) for sims in index]
+
     similarity_array = np.array(similarity_matrix)
     word_index = model.wv.index2word
-    dist_array = pdist(similarity_array)
 
-    # calculate hierarchy
-    Z = linkage(dist_array, 'ward')
-    plt.title("Ward")
-    dendrogram(Z, labels=word_index)
-    plt.show()
+    Z = linkage(similarity_array, 'single', metric=None)
+    # First mergin
+    print ('First two words merged: ', word_index[int(Z[0][0])], ' ', word_index[int(Z[0][1])])
+
+
+
+    # Check the Cophenetic Correlation Coefficient of your clustering with help of the cophenet() function.
+    # This (very very briefly) compares (correlates) the actual pairwise distances of all your samples to
+    # those implied by the hierarchical clustering. The closer the value is to 1, the better the clustering
+    # preserves the original distances
+    #ccc, coph_dists = cophenet(Z, similarity_array)
+    #print (ccc)
+
+    # Plot dendogram
+    plt.figure(figsize=(60, 150))
+    plt.title("Hierarchical Clustering Dendrogram with Ward Linkage for word similarity")
+    plt.xlabel('distance')
+    plt.ylabel('sample index')
+    dendrogram(Z, labels=word_index, orientation='left', leaf_font_size=5)
+    plt.savefig('femicides_ward.png', format='png', dpi=200)
+
 
 # Run predfined parameters
 main()
