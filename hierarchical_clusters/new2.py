@@ -21,6 +21,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage, fcluster, cophenet
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Some spanish stopwords (with some misspellings too) and some specific for this data
+
 stopwords = [u'del', u'la', u'de', u'y', u'en', u'un', u'el', u'la', u'un', u'una', u'los', u't', u'd',
          u'ls', u'las', u'unos', u'unas', u'uns', u'del', u'dl', u'al', u'la', u'el', u'le', u'p', u'hay',
          u'esta', u'lo', u'fue', u'es', u'quien', u'su', u'sus', u'mas', u'durante', u'hasta', u'estos',
@@ -38,7 +39,7 @@ def my_tokenizer(s):
     # lemmatization does not work very well for Spanish so we will use normal tokens
     tokens = []
     tokens = [t for t in s.split(' ')] # tokenization just at blank space
-    tokens = [t for t in tokens if t not in stopwords] # remove stopwords
+    #tokens = [t for t in tokens if t not in stopwords] # remove stopwords
     tokens = [t for t in tokens if not any(c.isdigit() for c in t)] # remove digits
     return tokens
 
@@ -49,8 +50,8 @@ data = df['pedir actualizacion'].tolist()
 text = [' '.join(my_tokenizer(s)) for s in data]
 labels = [x+'='+y for y,x in zip(df['pedir actualizacion'].tolist(), df['atencion_actualizar_datos'].tolist())]
 
-
 '''
+
 tfidf = TfidfVectorizer(max_features=100, stop_words=stopwords)
 X = tfidf.fit_transform(text).todense()
 print (X.shape)
@@ -78,6 +79,8 @@ plt.savefig('fase1_ward.png', format='png', dpi=200)
 
 # Try embeddings
 
+# Doc2Vec
+'''
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 all_tokens = [my_tokenizer(s) for s in data]
 print (len(all_tokens))
@@ -90,12 +93,9 @@ for i in range(0, len(all_tokens)):
     for j in range(0, len(all_tokens)):
         X2[i,j] = 1 - model.docvecs.similarity(i,j)
 
-print (X2)
-print (X2.shape)
-
 # calculate hierarchy
 h, w = X2.shape
-Z = linkage(X2[np.triu_indices(h, 1), 'ward'])
+Z = linkage(X2[np.triu_indices(h, 1)], 'ward')
 #Z = linkage(X2, 'ward')
 
 # Check the Cophenetic Correlation Coefficient of your clustering with help of the cophenet() function.
@@ -114,9 +114,42 @@ dendrogram(Z, labels=labels, orientation='left', leaf_font_size=2)
 plt.savefig('fase1_ward_emb_triagle.png', format='png', dpi=200)
 
 # Actually the perform worst that tf-idf
+'''
+
+
+# Word2vec
+
+all_tokens = [my_tokenizer(s) for s in data if s]
+model = Word2Vec(size=100, window=5, min_count=1) # Hyperparameters to experiment with
+model.build_vocab(all_tokens)
+model.train(all_tokens, total_examples=model.corpus_count, epochs=model.iter)
+
+import math
+
+X2 = np.empty((len(all_tokens), 1))
+for i in range(0, len(all_tokens)):
+    a = 0
+    for t in all_tokens[i]:
+         a += math.fsum(model.wv[t])
+    X2[i] = a/len(all_tokens)
+
+print (X2.shape)
+Z = linkage(X2, 'ward', metric='euclidean')
+
+try:
+    ccc, coph_dists = cophenet(Z, pdist(X2))
+    print (ccc)
+except:
+    pass
+
+plt.figure(figsize=(60, 150))
+plt.title("Ward")
+dendrogram(Z, labels=labels, orientation='left', leaf_font_size=2)
+plt.savefig('fase1_ward_w2v_emb_triagle_v3.png', format='png', dpi=200)
 
 
 
+# Fase 2
 '''
 df = pd.read_csv('all_data_v1.csv', encoding='utf-8')
 text = df['estado de la devolucion'].tolist()
