@@ -56,38 +56,43 @@ def run_experiment(m1, m2, m3, eps, N): # three "true" means to compare / 3 band
   cumulative_average = np.cumsum(data) / (np.arange(N) + 1)
 
   # plot moving average ctr
-  plt.plot(cumulative_average)
-  plt.plot(np.ones(N)*m1)
-  plt.plot(np.ones(N)*m2)
-  plt.plot(np.ones(N)*m3)
-  plt.xscale('log')
-  plt.show()
-
-  for b in bandits:             # print estiamted means
-    print(b.mean)
+  #plt.plot(cumulative_average)
+  #plt.plot(np.ones(N)*m1)
+  #plt.plot(np.ones(N)*m2)
+  #plt.plot(np.ones(N)*m3)
+  #plt.xscale('log')
+  #plt.show()
 
   return cumulative_average # array of cumulative means per bandit after every play
 
 # epsilon is the probability of exploration, the larger the epsilon the more we will go to explore
 if __name__ == '__main__':
-  c_1 = run_experiment(1.0, 5.0, 8.0, 0.1, 1000)          # we use same means but change epsilon to compare
-  c_05 = run_experiment(1.0, 2.0, 3.0, 0.05, 1000)
-  c_01 = run_experiment(1.0, 2.0, 3.0, 0.01, 1000)
+  e1 = 0.001 # If epsilon is too small, it will stay with the first bandit as it takes
+             # the first one when the first time it picks the estimated mean at zero
+             # (you can see this by changing th first mean)
+  e2 = 0.15  # This is a normal value for epsilon, so we should be able to, at the
+             # right moment, pick the highest mean
+  e3 = 0.9   # This is a very large epsilon, we should explore a lot
+             # so the results should be erratic
+
+  c_1 = run_experiment(0.8, 2.0, 1.0, e1, 1000)
+  c_05 = run_experiment(1.0, 2.0, 3.0, e2, 1000)
+  c_01 = run_experiment(1.0, 2.0, 3.0, e3, 1000)
 
   # plot the cumulative averages together, the three experiments
+  # this is to see how good the algorithm is, not each bandit in particular
 
   # log scale plot
-  plt.plot(c_1, label='eps = 0.1')
-  plt.plot(c_05, label='eps = 0.05')
-  plt.plot(c_01, label='eps = 0.01')
+  plt.plot(c_1, label='eps = '+str(e1))
+  plt.plot(c_05, label='eps = '+str(e2))
+  plt.plot(c_01, label='eps = '+str(e3))
   plt.legend()
   plt.xscale('log')
   plt.show()
 
-
   # linear plot
-  plt.plot(c_1, label='eps = 0.1')
-  plt.plot(c_05, label='eps = 0.05')
-  plt.plot(c_01, label='eps = 0.01')
-  plt.legend()
-  plt.show()
+  # plt.plot(c_1, label='eps = 0.1')
+  # plt.plot(c_05, label='eps = 0.05')
+  # plt.plot(c_01, label='eps = 0.01')
+  # plt.legend()
+  # plt.show()
